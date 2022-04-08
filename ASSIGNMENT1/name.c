@@ -41,6 +41,10 @@ void print_names( tNames *names, int num_year);
 // 정렬 기준 : 이름(1순위), 성별(2순위)
 int compare( const void *n1, const void *n2);
 
+void validate(tNames *names);
+
+int isSame(char *curName, char curSex, tName *name);
+
 ////////////////////////////////////////////////////////////////////////////////
 // 함수 정의 (definition)
 
@@ -132,6 +136,8 @@ int main(int argc, char **argv)
 	// 정렬 (이름순 (이름이 같은 경우 성별순))
 	qsort( names->data, names->len, sizeof(tName), compare);
 	
+	validate(names);
+	
 	// 이름 구조체를 화면에 출력
 	print_names( names, num_year);
 
@@ -141,15 +147,23 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-// 선형탐색(linear search) 버전
+int lsearch(tNames *names, char* name, char sex){
+
+	for(int i=0;i<names->len;i++){
+		tName temp = (names->data)[i];
+		if(!strcmp(temp.name, name)){ 
+			if(temp.sex == sex){
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
 void load_names_lsearch( FILE *fp, int year_index, tNames *names){
-	
 	char* fLine = (char *)malloc(100);
-	char* curName;
-	char curSex;
-	int curFreq;
-	
-	while(!feof(fp)){
+	while(!feof(fp)){							// 파일의 끝까지 반복
+
 		//텍스트파일에서 한 줄 읽어옴
 		fgets(fLine, 100 , fp);
 		//읽어온 줄에서 ','를 '\t'로 대체
@@ -159,42 +173,39 @@ void load_names_lsearch( FILE *fp, int year_index, tNames *names){
 			*ptr = '\t';
 			ptr = strchr(ptr + 1, ',');
 		}
-		//임시 데이터에 저장
-		sscanf(fLine,"%s %c%d", curName, &curSex, &curFreq);
+
+		char curName[20] = "";
+		char curSex = 0;
+		int curFreq=0;
 		
-		for(int i=0; i<names->len;i++){
-			
-			tName *curdat = (tName *)names->data+i;
-			//tNames에 이름과 성이 같은 데이터가 있으면 현재 연도의 빈도 추가
-			if(strcmp(curName,curdat->name) == 0){
-				if(curSex == curdat->sex){
-					curdat->freq[year_index] = curFreq;
-					break;
-				}
-			}	
-			
-			//len과 capacity가 같으면 capacity를 두배로 하고 data 배열을 재할당
-			if(names->len == names->capacity){
-				names->data = (tName *)realloc(names->data,names->capacity * 2 * sizeof(tName));
+		sscanf(fLine,"%s\t%c\t%d", curName, &curSex, &curFreq);
+
+		int index = lsearch(names, curName, curSex);	
+
+		if(index == -1){						
+			if(names->capacity == names->len){
+				names->data = realloc(names->data, 2 * names->capacity * sizeof(tName));
 				names->capacity *= 2;
 			}
-				
-			//tNames에 현재 내용을 추가
-			strcpy(curdat->name, curName);
-			curdat->sex = curSex;
-			curdat->freq[year_index] = curFreq;
+
+			strcpy(names->data[names->len].name,curName);
+			names->data[names->len].sex = curSex;
+			memset(names->data[names->len].freq,0,MAX_YEAR_DURATION);
+			names->data[names->len].freq[year_index] = curFreq;
 			names->len++;
+			
 		}
+		else{
+			names->data[index].freq[year_index] = curFreq;
+		}							
 	}
 	free(fLine);
 }
 
 // 이진탐색(binary search) 버전 (bsearch 함수 이용)
 void load_names_bsearch( FILE *fp, int year_index, tNames *names){
-	
+		
 	char* fLine = (char *)malloc(100);
-	char* curName;
-	char curSex;
 	int curFreq;
 	
 	while(!feof(fp)){
@@ -207,59 +218,43 @@ void load_names_bsearch( FILE *fp, int year_index, tNames *names){
 			*ptr = '\t';
 			ptr = strchr(ptr + 1, ',');
 		}
-		//임시 데이터에 저장
-		sscanf(fLine,"%s %c%d", curName, &curSex, &curFreq);
 		
-		int idx;
-		int min,max;
-		while(){
-			//curName이 names에 존재하지 않음, names의 제일 끝에 추가
-			if(min == max){
+		tName tempData;
+		memset(tempData.freq, 0, MAX_YEAR_DURATION);
+		//임시 데이터에 저장
+		sscanf(fLine,"%s %c %d", tempData.name, &(tempData.sex), &curFreq);
+		
+		//배열에 이미 키가 존재할 때
+		if(bsearch(&tempData, names->data, names->len, sizeof(tName), compare) != NULL){
+			tName *curAdd = (tName *)bsearch(&tempData, names->data, names->len, sizeof(tName), compare);
+			curAdd->freq[year_index] = curFreq;
+		}
+		//배열에 키가 존재하지 않을때
+		else{
+			//len과 capacity가 같으면 capacity를 두배로 하고 data 배열을 재할당
+			if(names->len == names->capacity){
+				names->data = (tName *)realloc(names->data,names->capacity * 2 * sizeof(tName));
+				names->capacity *= 2;
+			}
 			
-				//len과 capacity가 같으면 capacity를 두배로 하고 data 배열을 재할당
-				if(names->len == names->capacity){
-					names->data = (tName *)realloc(names->data,names->capacity * 2 * sizeof(tName));
-					names->capacity *= 2;
-				}
-				
-				tName *curdat = (tName *)names->(data+(names->len));
-				strcpy(curdat->name, curName);
-				curdat->sex = curSex;
-				curdat->freq[year_index] = curFreq;
-				names->len++;
-				break;
-			}	
-			//curName의 위치 == idx, idx의 freq[year_index] 설정
-			if((strcmp(curName, names->(data+idx)->name) == 0) && curSex == names->(data+idx)->sex){
-				
-				//len과 capacity가 같으면 capacity를 두배로 하고 data 배열을 재할당
-				if(names->len == names->capacity){
-					names->data = (tName *)realloc(names->data,names->capacity * 2 * sizeof(tName));
-					names->capacity *= 2;
-				}
-				
-				names->(data+idx)->freq[year_index] = curFreq;
-
-				break;
-			}
-			//max쪽으로 이동
-			else if(strcmp(curName, names->(data+idx)->name) > 0){
-					min = (min+max)/2;
-			}
-			//min쪽으로 이동
-			else{
-				max = (min+max)/2;
-			}
+			tName *curAdd = (tName *)(names->data) + (names->len);
+			strcpy(curAdd->name, tempData.name);
+			curAdd->sex = tempData.sex;
+			memset(curAdd->freq,0,MAX_YEAR_DURATION);
+			curAdd->freq[year_index] = curFreq;
+			names->len++;
 		}
 	}
 	free(fLine);
 }
+
 
 // 구조체 배열을 화면에 출력
 void print_names( tNames *names, int num_year){
 	
 	for(int i = 0; i< names->len ; i++){
 		tName *curStruct = names->data+i; 
+		if(curStruct->sex == 'X') continue;
 		printf("%s\t%c\t", curStruct->name, curStruct->sex);
 		for(int j = 0; j< num_year; j++){
 			printf("%d\t",curStruct->freq[j]);
@@ -273,12 +268,41 @@ void print_names( tNames *names, int num_year){
 int compare( const void *n1, const void *n2){
 	tName *first = (tName *)n1;
 	tName *second = (tName *)n2;
-	if(first->name == second->name){
-		return 0;
+	
+	if(strcmp(first->name, second->name) == 0){
+		if(first->sex == second->sex) return 0;
+		else if(first->sex == 'M'){
+			return 1;
+		}
+		else{
+			return -1;
+		}
 	}
-	else if(first->name > second->name){
-		return 1;
+	else{
+		return strcmp(first->name, second->name);
 	}
-	else return -1;
 }
 
+void validate(tNames *names){
+	char curName[20];
+	char curSex;
+	int idx;
+	for(int i=0; i<names->len; i++){
+		if(isSame(curName, curSex, &(names->data[i]))){
+			names->data[i].sex = 'X';
+			for(int j=0;j<MAX_YEAR_DURATION;j++){
+				names->data[idx].freq[j] += names->data[i].freq[j];
+			}
+		}
+		else{
+			strcpy(curName, names->data[i].name);
+			curSex = names->data[i].sex;
+			idx = i;
+		}
+	}
+}
+
+int isSame(char *curName, char curSex, tName *name){
+	if(!strcmp(curName, name->name) && curSex == name->sex) return 1;
+	else return 0;
+}
