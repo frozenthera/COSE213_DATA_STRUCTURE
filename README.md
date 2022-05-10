@@ -13,3 +13,6 @@ ASSIGNMENT3
 
 ASSIGNMENT4
 - ASSIGNMENT3를 ADT의 형태로 구현
+
+ASSIGNMENT5
+- BINARY SEARCH TREE에서 insertion, retrieval, deletion, destroy의 기능을 구현
