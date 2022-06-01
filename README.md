@@ -22,3 +22,6 @@ ASSIGNMENT6
 
 ASSIGNMENT7
 - 주어진 string들을 입력 받는 AVL Tree의 Creat, Insert, Delete, Destroy를 구현
+
+ASSIGNMENT8
+- TRIE의 Insert, Search 구현. 추가로 permuterm을 이용하여 wildcard문자를 다양한 형태로 포함하는 문자열의 Wildcard Search 구현
